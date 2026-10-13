@@ -2,6 +2,8 @@
 
 [![Build](https://github.com/sememtac/obs-export-path-dock/actions/workflows/push.yaml/badge.svg)](https://github.com/sememtac/obs-export-path-dock/actions/workflows/push.yaml)
 
+<img width="365" height="116" alt="image" src="https://github.com/user-attachments/assets/655bce9b-5e79-481a-a038-9a2044d00d3d" />
+
 Export Path Dock is an OBS Studio dock that sets the folder where OBS saves your recordings.
 
 Without the dock, you must open **Settings → Output** to change the recording folder. Then you must find the correct field for your output mode. The dock shows the folder in the main OBS window, next to your scenes. You can change the folder between recordings without opening Settings.
