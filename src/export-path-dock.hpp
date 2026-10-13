@@ -25,12 +25,10 @@ with this program. If not, see <https://www.gnu.org/licenses/>
 #include <QStringList>
 #include <QWidget>
 
+class QComboBox;
 class QLabel;
-class QLineEdit;
-class QMenu;
 class QPushButton;
 class QTimer;
-class QToolButton;
 
 class ExportPathDock : public QWidget {
 	Q_OBJECT
@@ -51,18 +49,17 @@ private:
 	void UpdateStatus();
 	void ShowCurrentFolder();
 	void ShowError(const QString &message);
+	void RebuildFolderList();
 
 	void ApplyFolder(const QString &input);
 	void Browse();
 	void OpenFolder();
-	void BuildRecentMenu();
+	void ClearRecentFolders();
 
 	QLabel *modeLabel;
-	QLineEdit *pathEdit;
+	QComboBox *pathCombo; // editable: shows the current folder, drops down to recent ones
 	QPushButton *browseButton;
 	QPushButton *openButton;
-	QToolButton *recentButton;
-	QMenu *recentMenu;
 	QLabel *statusLabel;
 	QTimer *refreshTimer;
 

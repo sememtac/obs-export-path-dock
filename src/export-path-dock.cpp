@@ -22,6 +22,8 @@ with this program. If not, see <https://www.gnu.org/licenses/>
 #include <obs-module.h>
 #include <plugin-support.h>
 
+#include <QAbstractItemView>
+#include <QComboBox>
 #include <QDesktopServices>
 #include <QDir>
 #include <QFileDialog>
@@ -29,18 +31,19 @@ with this program. If not, see <https://www.gnu.org/licenses/>
 #include <QHBoxLayout>
 #include <QLabel>
 #include <QLineEdit>
-#include <QMenu>
 #include <QMessageBox>
 #include <QPushButton>
+#include <QSignalBlocker>
 #include <QTemporaryFile>
 #include <QTimer>
-#include <QToolButton>
 #include <QUrl>
 #include <QVBoxLayout>
 
 namespace {
 
 constexpr int RefreshIntervalMs = 1000;
+constexpr int MinimumPathLength = 12;             // characters; keeps long paths from forcing the dock wider
+constexpr int ClearRecentRole = Qt::UserRole + 1; // marks the "Clear Recent Folders" entry in the list
 
 QString Text(const char *key)
 {
@@ -74,11 +77,9 @@ bool IsWritable(const QString &folder)
 ExportPathDock::ExportPathDock(QWidget *parent)
 	: QWidget(parent),
 	  modeLabel(new QLabel(this)),
-	  pathEdit(new QLineEdit(this)),
+	  pathCombo(new QComboBox(this)),
 	  browseButton(new QPushButton(Text("ExportPathDock.Browse"), this)),
 	  openButton(new QPushButton(Text("ExportPathDock.OpenFolder"), this)),
-	  recentButton(new QToolButton(this)),
-	  recentMenu(new QMenu(this)),
 	  statusLabel(new QLabel(this)),
 	  refreshTimer(new QTimer(this))
 {
@@ -86,31 +87,44 @@ ExportPathDock::ExportPathDock(QWidget *parent)
 	statusLabel->setWordWrap(true);
 	statusLabel->hide();
 
-	pathEdit->setPlaceholderText(Text("ExportPathDock.PathPlaceholder"));
-
-	recentButton->setText(Text("ExportPathDock.Recent"));
-	recentButton->setPopupMode(QToolButton::InstantPopup);
-	recentButton->setMenu(recentMenu);
+	pathCombo->setEditable(true);
+	// Typed folders get inserted into the list so Enter emits activated() just like picking an item;
+	// RebuildFolderList() takes them out again.
+	pathCombo->setInsertPolicy(QComboBox::InsertAtTop);
+	pathCombo->setCompleter(nullptr);
+	pathCombo->setSizeAdjustPolicy(QComboBox::AdjustToMinimumContentsLengthWithIcon);
+	pathCombo->setMinimumContentsLength(MinimumPathLength);
+	pathCombo->view()->setTextElideMode(Qt::ElideMiddle);
+	pathCombo->lineEdit()->setPlaceholderText(Text("ExportPathDock.PathPlaceholder"));
 
 	auto *buttons = new QHBoxLayout();
 	buttons->addWidget(browseButton);
 	buttons->addWidget(openButton);
-	buttons->addWidget(recentButton);
 	buttons->addStretch();
 
 	auto *layout = new QVBoxLayout(this);
 	layout->addWidget(modeLabel);
-	layout->addWidget(pathEdit);
+	layout->addWidget(pathCombo);
 	layout->addLayout(buttons);
 	layout->addWidget(statusLabel);
 	layout->addStretch();
 
 	refreshTimer->setInterval(RefreshIntervalMs);
 	connect(refreshTimer, &QTimer::timeout, this, [this]() { Refresh(); });
-	connect(pathEdit, &QLineEdit::returnPressed, this, [this]() { ApplyFolder(pathEdit->text()); });
+	connect(pathCombo, &QComboBox::activated, this, [this](int index) {
+		bool clearRecent = pathCombo->itemData(index, ClearRecentRole).toBool();
+		QString text = pathCombo->itemText(index);
+		// Wait until QComboBox is done handling the click or Enter: both branches rebuild its list,
+		// and applying a folder can open a dialog.
+		QTimer::singleShot(0, this, [this, clearRecent, text]() {
+			if (clearRecent)
+				ClearRecentFolders();
+			else
+				ApplyFolder(text);
+		});
+	});
 	connect(browseButton, &QPushButton::clicked, this, &ExportPathDock::Browse);
 	connect(openButton, &QPushButton::clicked, this, &ExportPathDock::OpenFolder);
-	connect(recentMenu, &QMenu::aboutToShow, this, &ExportPathDock::BuildRecentMenu);
 
 	recentFolders = RecentFolders::Load();
 }
@@ -174,14 +188,14 @@ void ExportPathDock::Refresh(bool force)
 
 		bool hasFolder = RecordingPath::HasFolder(target);
 		modeLabel->setText(ModeText(target));
-		pathEdit->setEnabled(hasFolder);
+		pathCombo->setEnabled(hasFolder);
 		browseButton->setEnabled(hasFolder);
-		recentButton->setEnabled(hasFolder);
 		openButton->setEnabled(hasFolder && folderExists);
+		RebuildFolderList();
 	}
 
 	// Leave the text alone while the user is typing a new folder; otherwise drop unapplied edits.
-	if (!pathEdit->hasFocus() && pathEdit->text() != QDir::toNativeSeparators(currentFolder))
+	if (!pathCombo->hasFocus() && pathCombo->currentText() != QDir::toNativeSeparators(currentFolder))
 		ShowCurrentFolder();
 
 	UpdateStatus();
@@ -214,8 +228,44 @@ void ExportPathDock::UpdateStatus()
 void ExportPathDock::ShowCurrentFolder()
 {
 	QString display = QDir::toNativeSeparators(currentFolder);
-	pathEdit->setText(display);
-	pathEdit->setToolTip(display);
+	pathCombo->setEditText(display);
+	pathCombo->setToolTip(display);
+}
+
+void ExportPathDock::RebuildFolderList()
+{
+	// The current folder is always listed first, followed by the recent ones.
+	QStringList folders = recentFolders;
+	if (!currentFolder.isEmpty())
+		folders = RecentFolders::Add(folders, currentFolder);
+	bool hasHistory = folders.size() > (currentFolder.isEmpty() ? 0 : 1);
+
+	QSignalBlocker blocker(pathCombo);
+	QString text = pathCombo->currentText();
+	pathCombo->clear();
+
+	for (const QString &folder : folders) {
+		QString display = QDir::toNativeSeparators(folder);
+		pathCombo->addItem(display);
+		pathCombo->setItemData(pathCombo->count() - 1, display, Qt::ToolTipRole);
+	}
+
+	if (hasHistory) {
+		pathCombo->insertSeparator(pathCombo->count());
+		pathCombo->addItem(Text("ExportPathDock.Recent.Clear"));
+		pathCombo->setItemData(pathCombo->count() - 1, true, ClearRecentRole);
+	}
+
+	pathCombo->setCurrentIndex(currentFolder.isEmpty() ? -1 : 0);
+	pathCombo->setEditText(text);
+}
+
+void ExportPathDock::ClearRecentFolders()
+{
+	recentFolders.clear();
+	RecentFolders::Save(recentFolders);
+	RebuildFolderList();
+	ShowCurrentFolder();
 }
 
 void ExportPathDock::ShowError(const QString &message)
@@ -226,6 +276,7 @@ void ExportPathDock::ShowError(const QString &message)
 
 void ExportPathDock::ApplyFolder(const QString &input)
 {
+	RebuildFolderList();
 	if (!RecordingPath::HasFolder(target))
 		return;
 
@@ -278,7 +329,7 @@ void ExportPathDock::ApplyFolder(const QString &input)
 	recentFolders = RecentFolders::Add(recentFolders, folder);
 	RecentFolders::Save(recentFolders);
 
-	pathEdit->clearFocus();
+	pathCombo->clearFocus();
 	Refresh(true);
 }
 
@@ -296,29 +347,4 @@ void ExportPathDock::OpenFolder()
 {
 	if (folderExists)
 		QDesktopServices::openUrl(QUrl::fromLocalFile(currentFolder));
-}
-
-void ExportPathDock::BuildRecentMenu()
-{
-	recentMenu->clear();
-
-	if (recentFolders.isEmpty()) {
-		recentMenu->addAction(Text("ExportPathDock.Recent.Empty"))->setEnabled(false);
-		return;
-	}
-
-	for (const QString &folder : recentFolders) {
-		// "&" marks a keyboard shortcut in menu text, so escape it in folder names.
-		QAction *action = recentMenu->addAction(QDir::toNativeSeparators(folder).replace("&", "&&"));
-		action->setCheckable(true);
-		action->setChecked(RecordingPath::SamePath(folder, currentFolder));
-		connect(action, &QAction::triggered, this, [this, folder]() { ApplyFolder(folder); });
-	}
-
-	recentMenu->addSeparator();
-	QAction *clear = recentMenu->addAction(Text("ExportPathDock.Recent.Clear"));
-	connect(clear, &QAction::triggered, this, [this]() {
-		recentFolders.clear();
-		RecentFolders::Save(recentFolders);
-	});
 }
