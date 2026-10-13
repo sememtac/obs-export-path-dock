@@ -33,13 +33,13 @@
     },
     "platformConfig": {
         "macos": {
-            "bundleId": "com.example.plugintemplate-for-obs"
+            "bundleId": "com.sememtac.export-path-dock"
         }
     },
-    "name": "plugintemplate-for-obs",
-    "displayName": "Plugin Template for OBS",
-    "version": "1.0.0",
-    "author": "Your Name Here",
-    "website": "https://example.com",
-    "email": "me@example.com"
+    "name": "export-path-dock",
+    "displayName": "Export Path Dock",
+    "version": "0.1.0",
+    "author": "Andy Xiao",
+    "website": "https://github.com/sememtac/obs-export-path-dock",
+    "email": "andy.xiao@gmail.com"
 }
