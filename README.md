@@ -45,13 +45,30 @@ Without the dock, you must open **Settings → Output** to change the recording 
 ### macOS
 
 1. Open `export-path-dock-<version>-macos-universal.pkg`.
-2. Do the steps in the installer.
+2. Do the steps in the installer. Do not change the install location.
 
-The package does not have an Apple signature. Thus, macOS can stop the installer and show a warning about an unidentified developer. If you see this warning, do these steps:
+The installer puts the plugin in `~/Library/Application Support/obs-studio/plugins/`.
 
-1. Open **System Settings → Privacy & Security**. On macOS 12, open **System Preferences → Security & Privacy**.
-2. Click **Open Anyway** next to the message about the package.
-3. Open the package again.
+The package does not have an Apple signature. Thus, macOS can stop the installer. On macOS 15, the message contains the words "free of malware". If you see this message, do these steps:
+
+1. Click **Done**. Do not click **Move to Trash**.
+2. Open **System Settings → Privacy & Security**. On macOS 12, open **System Preferences → Security & Privacy**.
+3. Find the message about the package in the **Security** section. Click **Open Anyway**.
+4. If macOS asks for your password, type it. The installer starts.
+5. If the installer does not start, open the package again.
+
+**If OBS does not load the plugin:** A browser marks the files that you download. macOS does not let OBS load a marked plugin. This problem can occur if you copy `export-path-dock.plugin` yourself and do not use the package.
+
+When OBS starts, macOS shows "“export-path-dock.plugin” Not Opened". Then OBS shows "The following OBS plugins failed to load". **Allow Anyway** in **Privacy & Security** does not solve this problem. Do these steps:
+
+1. Quit OBS.
+2. In Terminal, run this command:
+
+   ```sh
+   xattr -dr com.apple.quarantine ~/Library/Application\ Support/obs-studio/plugins/export-path-dock.plugin
+   ```
+
+3. Start OBS.
 
 ### Ubuntu
 
@@ -111,7 +128,14 @@ This project uses the official [OBS plugin template](https://github.com/obsproje
 Each platform needs these tools:
 
 - **Windows:** Visual Studio 2022 with the C++ workload, and Windows SDK 10.0.22621. The CMake preset selects this SDK version.
-- **macOS:** Xcode 16.
+- **macOS:** Xcode 16 or newer, and CMake 3.28 or newer. The Command Line Tools alone are not sufficient. Install the full Xcode app. Then run these commands:
+
+  ```sh
+  sudo xcode-select -s /Applications/Xcode.app/Contents/Developer
+  sudo xcodebuild -license accept
+  ```
+
+  To install CMake with Homebrew, run `brew install cmake`.
 - **Ubuntu:** `build-essential`, `cmake`, `ninja-build`, `pkg-config`, `qt6-base-dev`, and `qt6-base-private-dev`.
 
 For the full list, see the [build system requirements](https://github.com/obsproject/obs-plugintemplate/wiki/Build-System-Requirements) of the template.
@@ -120,6 +144,11 @@ To test a Windows build:
 
 1. Run `cmake --install build_x64 --prefix release --config RelWithDebInfo`.
 2. Copy the contents of `release\` into `C:\ProgramData\obs-studio\plugins\`.
+
+To test a macOS build:
+
+1. Run `cmake --install build_macos --config RelWithDebInfo --prefix release/RelWithDebInfo`. This command also makes `release/RelWithDebInfo/export-path-dock.pkg`.
+2. Open the package. Or copy `release/RelWithDebInfo/export-path-dock.plugin` into `~/Library/Application Support/obs-studio/plugins/`.
 
 ### Source layout
 
