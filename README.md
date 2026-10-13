@@ -2,19 +2,20 @@
 
 [![Build](https://github.com/sememtac/obs-export-path-dock/actions/workflows/push.yaml/badge.svg)](https://github.com/sememtac/obs-export-path-dock/actions/workflows/push.yaml)
 
-An OBS Studio dock for changing where your recordings are saved.
+Export Path Dock is an OBS Studio dock that sets the folder where OBS saves your recordings.
 
-Normally, changing the recording folder means opening **Settings → Output** and finding the right field for your output mode. Export Path Dock puts that folder in a dock next to your scenes, so you can switch folders between takes without leaving the main window.
+Without the dock, you must open **Settings → Output** to change the recording folder. Then you must find the correct field for your output mode. The dock shows the folder in the main OBS window, next to your scenes. You can change the folder between recordings without opening Settings.
 
 ## Features
 
-- Shows the folder OBS will save the next recording to
-- Type a path and press Enter, or click **Browse…** to pick a folder
-- The folder box drops down to the last 10 folders you used
-- **Open Folder** opens the current folder in your file manager
-- Offers to create a folder that doesn't exist yet, and won't accept a folder OBS can't write to
-- Works in Simple and Advanced output mode, including Advanced mode's Custom Output (FFmpeg)
-- Picks up changes made in **Settings → Output** and follows you when you switch profiles
+- Shows the folder where OBS saves the next recording.
+- Changes the folder when you type a path and press Enter, or when you click **Browse…**.
+- Keeps a list of the last 10 folders that you used. The list is in the dropdown of the folder box.
+- Opens the current folder in your file manager when you click **Open Folder**.
+- Asks if you want to create a folder that does not exist.
+- Does not accept a folder where OBS cannot write files.
+- Works in Simple output mode and in Advanced output mode, including Custom Output (FFmpeg).
+- Shows changes that you make in **Settings → Output**, and shows the correct folder when you change to a different profile.
 
 ## Requirements
 
@@ -23,25 +24,32 @@ Normally, changing the recording folder means opening **Settings → Output** an
 
 ## Installation
 
-Download the file for your system from the [latest release](https://github.com/sememtac/obs-export-path-dock/releases/latest), close OBS, then follow the steps for your system.
+1. Close OBS.
+2. Download the file for your operating system from the [latest release](https://github.com/sememtac/obs-export-path-dock/releases/latest).
+3. Do the steps for your operating system below.
 
 ### Windows
 
 1. Extract `export-path-dock-<version>-windows-x64.zip` into `C:\ProgramData\obs-studio\plugins\`.
-2. Check that this file exists: `C:\ProgramData\obs-studio\plugins\export-path-dock\bin\64bit\export-path-dock.dll`.
+2. Make sure that this file exists: `C:\ProgramData\obs-studio\plugins\export-path-dock\bin\64bit\export-path-dock.dll`.
 
-**Portable OBS:** portable installs don't load plugins from `ProgramData`. Copy the files into your OBS folder instead:
+**Portable OBS:** A portable installation of OBS does not load plugins from `ProgramData`. Copy the files from the zip into your OBS folder:
 
-| From the zip | To your OBS folder |
+| File or folder in the zip | Destination in your OBS folder |
 |---|---|
 | `export-path-dock\bin\64bit\export-path-dock.dll` | `obs-plugins\64bit\` |
-| `export-path-dock\data\` (its contents) | `data\obs-plugins\export-path-dock\` |
+| The contents of `export-path-dock\data\` | `data\obs-plugins\export-path-dock\` |
 
 ### macOS
 
-Open `export-path-dock-<version>-macos-universal.pkg` and follow the installer.
+1. Open `export-path-dock-<version>-macos-universal.pkg`.
+2. Do the steps in the installer.
 
-If macOS says the package is from an unidentified developer, Control-click the file, choose **Open**, then confirm.
+The package does not have an Apple signature. Thus, macOS can stop the installer and show a warning about an unidentified developer. If you see this warning, do these steps:
+
+1. Open **System Settings → Privacy & Security**. On macOS 12, open **System Preferences → Security & Privacy**.
+2. Click **Open Anyway** next to the message about the package.
+3. Open the package again.
 
 ### Ubuntu
 
@@ -49,40 +57,48 @@ If macOS says the package is from an unidentified developer, Control-click the f
 sudo apt install ./export-path-dock-<version>-x86_64-linux-gnu.deb
 ```
 
-The package works with OBS installed from the [official PPA](https://obsproject.com/kb/linux-installation). The Flatpak and Snap versions of OBS can't load it.
+The package works with OBS from the [official PPA](https://obsproject.com/kb/linux-installation). The Flatpak and Snap versions of OBS cannot load it.
 
 ## Usage
 
-1. Start OBS and choose **Docks → Export Path**. The dock opens as a floating window; drag it onto the main window to dock it.
-2. Change the folder in any of these ways:
-   - Click **Browse…** and pick a folder.
-   - Type or paste a path into the folder box and press Enter.
-   - Open the folder box's dropdown and pick a recent folder.
+1. Start OBS.
+2. Select **Docks → Export Path**. The dock opens as a floating window.
+3. Optional: Drag the dock onto the main window to attach it.
 
-The next recording goes to the new folder. Below the buttons, the dock warns you when:
+To change the folder, use one of these methods:
 
-- a recording or the replay buffer is running (the new folder applies the next time it starts)
-- the current folder no longer exists (for example, an unplugged drive)
-- Custom Output is sending to a URL rather than a file, so there's no folder to change
+- Click **Browse…** and select a folder.
+- Type or paste a path into the folder box, then press Enter.
+- Open the dropdown of the folder box and select a recent folder.
 
-To clear the history, open the dropdown and choose **Clear Recent Folders**.
+OBS saves the next recording in the new folder.
+
+The dock shows a message below the buttons in these conditions:
+
+- A recording or the replay buffer is running. The new folder applies when the next recording or replay buffer starts.
+- The current folder does not exist. For example, the folder is on a drive that you disconnected.
+- Custom Output sends to a URL, not to a file. In this mode, there is no folder to change.
+
+To clear the list of recent folders, open the dropdown and select **Clear Recent Folders**.
 
 ## How it works
 
-OBS stores the recording folder in each profile's settings, in a different field for each output mode, and reads it again every time a recording or the replay buffer starts. The dock edits the field for the output mode you're currently using, which is the same field **Settings → Output** edits. Your other recording settings stay as they are.
+OBS keeps the recording folder in the settings of each profile. Each output mode has a different setting for the folder. OBS reads this setting each time a recording or the replay buffer starts.
 
-The replay buffer saves to the recording folder, so it follows the dock too.
+The dock changes the setting for your current output mode. **Settings → Output** changes the same setting. The dock does not change your other recording settings.
 
-The recent-folders list is saved separately in the plugin's own settings, so it's shared by all your profiles.
+The replay buffer saves to the recording folder. When you change the folder in the dock, the replay buffer also uses the new folder.
+
+The plugin keeps the list of recent folders in its own settings file. All your profiles use the same list.
 
 ## Known limitations
 
-- If **Settings** is open while you change the folder in the dock, clicking **OK** or **Apply** in Settings puts back the folder Settings had when you opened it. The dock updates to show whichever folder OBS ends up using.
-- OBS has no separate folder for the replay buffer, so the dock can't set one.
+- The Settings window reads the folder when it opens. Do not change the folder in the dock while Settings is open. If you do, **OK** and **Apply** in Settings set the old folder again. The dock then shows the old folder.
+- OBS does not have a separate folder setting for the replay buffer. Thus, the dock cannot set a different folder for the replay buffer.
 
 ## Building from source
 
-The project is based on the official [OBS plugin template](https://github.com/obsproject/obs-plugintemplate). The first configure downloads the OBS sources, the prebuilt OBS dependencies and Qt.
+This project uses the official [OBS plugin template](https://github.com/obsproject/obs-plugintemplate). When you configure the project for the first time, CMake downloads the OBS source code, the prebuilt OBS dependencies, and Qt.
 
 | Platform | Configure | Build |
 |---|---|---|
@@ -90,34 +106,45 @@ The project is based on the official [OBS plugin template](https://github.com/ob
 | macOS | `cmake --preset macos` | `cmake --build --preset macos` |
 | Ubuntu | `cmake --preset ubuntu-x86_64` | `cmake --build --preset ubuntu-x86_64` |
 
-Each platform needs:
+Each platform needs these tools:
 
-- **Windows:** Visual Studio 2022 with the C++ workload, and Windows SDK 10.0.22621 (the version the preset selects)
-- **macOS:** Xcode 16
-- **Ubuntu:** `build-essential`, `cmake`, `ninja-build`, `pkg-config`, `qt6-base-dev` and `qt6-base-private-dev`
+- **Windows:** Visual Studio 2022 with the C++ workload, and Windows SDK 10.0.22621. The CMake preset selects this SDK version.
+- **macOS:** Xcode 16.
+- **Ubuntu:** `build-essential`, `cmake`, `ninja-build`, `pkg-config`, `qt6-base-dev`, and `qt6-base-private-dev`.
 
-See the template's [build system requirements](https://github.com/obsproject/obs-plugintemplate/wiki/Build-System-Requirements) for the full list.
+For the full list, see the [build system requirements](https://github.com/obsproject/obs-plugintemplate/wiki/Build-System-Requirements) of the template.
 
-To try a Windows build, run `cmake --install build_x64 --prefix release --config RelWithDebInfo` and copy the contents of `release\` into `C:\ProgramData\obs-studio\plugins\`.
+To test a Windows build:
+
+1. Run `cmake --install build_x64 --prefix release --config RelWithDebInfo`.
+2. Copy the contents of `release\` into `C:\ProgramData\obs-studio\plugins\`.
 
 ### Source layout
 
 | File | Purpose |
 |---|---|
-| `src/plugin-main.cpp` | Loads the plugin and registers the dock with OBS |
-| `src/export-path-dock.cpp` | The dock's interface and behavior |
+| `src/plugin-main.cpp` | Loads the plugin and adds the dock to OBS |
+| `src/export-path-dock.cpp` | Shows the dock and handles user actions |
 | `src/recording-path.cpp` | Reads and writes the recording folder for each output mode |
-| `src/recent-folders.cpp` | Saves and loads the recent-folders list |
-| `data/locale/en-US.ini` | Interface text |
+| `src/recent-folders.cpp` | Saves and loads the list of recent folders |
+| `data/locale/en-US.ini` | Contains the interface text |
 
 ### Releases
 
-GitHub Actions builds all three platforms on every push to `main` and checks formatting with clang-format 19.1.1 and gersemi. Pushing a version tag such as `0.1.0` creates a draft release with the packages attached.
+GitHub Actions builds the plugin for all three platforms when you push to `main`. It also checks the formatting with clang-format 19.1.1 and gersemi.
+
+When you push a version tag, for example `0.1.0`, GitHub Actions creates a draft release. The draft release contains the packages for all three platforms.
 
 ## Contributing
 
-Bug reports and pull requests are welcome on the [issue tracker](https://github.com/sememtac/obs-export-path-dock/issues). When reporting a bug, include your OBS version, operating system, and the OBS log file (**Help → Log Files → Upload Current Log File**).
+To report a bug or to request a change, open an issue in the [issue tracker](https://github.com/sememtac/obs-export-path-dock/issues). Pull requests are welcome.
+
+When you report a bug, include this information:
+
+- Your OBS version
+- Your operating system
+- The URL of your OBS log file. To get the URL, select **Help → Log Files → Upload Current Log File**.
 
 ## License
 
-Export Path Dock is licensed under the [GNU General Public License v2.0 or later](LICENSE), the same license as OBS Studio.
+Export Path Dock uses the [GNU General Public License v2.0 or later](LICENSE), the same license as OBS Studio.
