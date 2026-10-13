@@ -93,13 +93,25 @@ bool Set(Target target, const QString &folder)
 
 QString Normalize(const QString &folder)
 {
-	return QDir::cleanPath(QDir::fromNativeSeparators(folder.trimmed()));
+	QString path = QDir::fromNativeSeparators(folder.trimmed());
+#ifndef _WIN32
+	// Shells and the Finder's "Go to Folder" accept ~ for the home folder, so people type it here too.
+	if (path == "~" || path.startsWith("~/"))
+		path.replace(0, 1, QDir::homePath());
+#endif
+	return QDir::cleanPath(path);
 }
 
 bool SamePath(const QString &a, const QString &b)
 {
 #ifdef _WIN32
 	return Normalize(a).compare(Normalize(b), Qt::CaseInsensitive) == 0;
+#elif defined(__APPLE__)
+	// APFS ignores case and Unicode normalization by default, and the folder dialog returns
+	// decomposed names (NFD) where typed text is usually composed (NFC).
+	return Normalize(a)
+		       .normalized(QString::NormalizationForm_C)
+		       .compare(Normalize(b).normalized(QString::NormalizationForm_C), Qt::CaseInsensitive) == 0;
 #else
 	return Normalize(a) == Normalize(b);
 #endif
