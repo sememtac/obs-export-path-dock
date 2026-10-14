@@ -28,6 +28,7 @@ with this program. If not, see <https://www.gnu.org/licenses/>
 class QComboBox;
 class QLabel;
 class QPushButton;
+class QThreadPool;
 class QTimer;
 
 class ExportPathDock : public QWidget {
@@ -35,6 +36,7 @@ class ExportPathDock : public QWidget {
 
 public:
 	explicit ExportPathDock(QWidget *parent = nullptr);
+	~ExportPathDock() override;
 
 	void HandleFrontendEvent(enum obs_frontend_event event);
 
@@ -46,6 +48,10 @@ private:
 	// Re-reads the folder from OBS. Polled because OBS has no event for "settings changed", so
 	// this is how edits made in Settings > Output show up here.
 	void Refresh(bool force = false);
+	// Checks in the background that the folder still exists, so a drive that disconnects or
+	// reconnects shows up within a refresh.
+	void CheckFolder();
+	void FolderChecked(const QString &folder, bool exists);
 	void UpdateStatus();
 	void ShowCurrentFolder();
 	void ShowError(const QString &message);
@@ -62,10 +68,12 @@ private:
 	QPushButton *openButton;
 	QLabel *statusLabel;
 	QTimer *refreshTimer;
+	QThreadPool *folderCheckPool;
 
 	bool loaded = false;
 	RecordingPath::Target target = RecordingPath::Target::Simple;
 	QString currentFolder; // as stored in the OBS profile
 	bool folderExists = false;
+	bool folderCheckPending = false;
 	QStringList recentFolders;
 };

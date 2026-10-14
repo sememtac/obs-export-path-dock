@@ -35,6 +35,7 @@ with this program. If not, see <https://www.gnu.org/licenses/>
 #include <QPushButton>
 #include <QSignalBlocker>
 #include <QTemporaryFile>
+#include <QThreadPool>
 #include <QTimer>
 #include <QUrl>
 #include <QVBoxLayout>
@@ -81,8 +82,11 @@ ExportPathDock::ExportPathDock(QWidget *parent)
 	  browseButton(new QPushButton(Text("ExportPathDock.Browse"), this)),
 	  openButton(new QPushButton(Text("ExportPathDock.OpenFolder"), this)),
 	  statusLabel(new QLabel(this)),
-	  refreshTimer(new QTimer(this))
+	  refreshTimer(new QTimer(this)),
+	  folderCheckPool(new QThreadPool(this))
 {
+	folderCheckPool->setMaxThreadCount(1);
+
 	modeLabel->setWordWrap(true);
 	statusLabel->setWordWrap(true);
 	statusLabel->hide();
@@ -127,6 +131,13 @@ ExportPathDock::ExportPathDock(QWidget *parent)
 	connect(openButton, &QPushButton::clicked, this, &ExportPathDock::OpenFolder);
 
 	recentFolders = RecentFolders::Load();
+}
+
+ExportPathDock::~ExportPathDock()
+{
+	// A running check posts its result to this dock, so let it finish before the dock goes away.
+	// This only waits when a network drive is slow to answer.
+	folderCheckPool->waitForDone();
 }
 
 void ExportPathDock::HandleFrontendEvent(enum obs_frontend_event event)
@@ -181,16 +192,17 @@ void ExportPathDock::Refresh(bool force)
 	QString newFolder = RecordingPath::Get(newTarget);
 
 	if (force || newTarget != target || newFolder != currentFolder) {
+		// Assume a new folder exists until CheckFolder() reports, rather than flash a warning.
+		if (newFolder != currentFolder)
+			folderExists = !newFolder.isEmpty();
 		target = newTarget;
 		currentFolder = newFolder;
-		// Only checked when something changes: a disconnected network drive can block for seconds.
-		folderExists = !currentFolder.isEmpty() && QFileInfo(currentFolder).isDir();
 
 		bool hasFolder = RecordingPath::HasFolder(target);
 		modeLabel->setText(ModeText(target));
 		pathCombo->setEnabled(hasFolder);
+		pathCombo->setToolTip(QDir::toNativeSeparators(currentFolder));
 		browseButton->setEnabled(hasFolder);
-		openButton->setEnabled(hasFolder && folderExists);
 		RebuildFolderList();
 	}
 
@@ -198,7 +210,39 @@ void ExportPathDock::Refresh(bool force)
 	if (!pathCombo->hasFocus() && pathCombo->currentText() != QDir::toNativeSeparators(currentFolder))
 		ShowCurrentFolder();
 
+	CheckFolder();
 	UpdateStatus();
+}
+
+void ExportPathDock::CheckFolder()
+{
+	if (!loaded || folderCheckPending || currentFolder.isEmpty() || !RecordingPath::HasFolder(target))
+		return;
+
+	folderCheckPending = true;
+	QString folder = currentFolder;
+	// isDir() can block for seconds on a disconnected network drive, so it runs off the UI thread.
+	folderCheckPool->start([this, folder]() {
+		bool exists = QFileInfo(folder).isDir();
+		QMetaObject::invokeMethod(
+			this, [this, folder, exists]() { FolderChecked(folder, exists); }, Qt::QueuedConnection);
+	});
+}
+
+void ExportPathDock::FolderChecked(const QString &folder, bool exists)
+{
+	folderCheckPending = false;
+
+	// The folder changed while the check ran, so check the new one.
+	if (folder != currentFolder) {
+		CheckFolder();
+		return;
+	}
+
+	if (exists != folderExists) {
+		folderExists = exists;
+		UpdateStatus();
+	}
 }
 
 void ExportPathDock::UpdateStatus()
@@ -223,13 +267,13 @@ void ExportPathDock::UpdateStatus()
 	if (statusLabel->text() != text)
 		statusLabel->setText(text);
 	statusLabel->setVisible(!lines.isEmpty());
+
+	openButton->setEnabled(RecordingPath::HasFolder(target) && folderExists);
 }
 
 void ExportPathDock::ShowCurrentFolder()
 {
-	QString display = QDir::toNativeSeparators(currentFolder);
-	pathCombo->setEditText(display);
-	pathCombo->setToolTip(display);
+	pathCombo->setEditText(QDir::toNativeSeparators(currentFolder));
 }
 
 void ExportPathDock::RebuildFolderList()
